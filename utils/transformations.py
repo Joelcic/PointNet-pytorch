@@ -1,6 +1,27 @@
 import numpy as np
 import torch
+from torchvision import transforms
 
+def default_transforms(train=True):
+    """
+    Returns a composed set of transformations to be applied to point cloud data.
+    If `train` is True, the returned transform includes data augmentation steps
+    such as random rotation around the Z-axis and Gaussian noise addition.
+    If False, only normalization is applied.
+    :param train: (bool) Whether the transformations are for training (default is True).
+    :return:
+        transform: (torchvision.transforms.Compose) A composition of point cloud transforms.
+    """
+    if train:
+        return transforms.Compose([
+            Normalize(),
+            RandomRotateZ(),
+            GaussianNoice(),
+        ])
+    else:
+        return transforms.Compose([
+            Normalize(),
+        ])
 
 class Normalize(object):
     def __call__(self, pointcloud):

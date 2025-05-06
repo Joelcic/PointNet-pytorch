@@ -3,7 +3,7 @@ import os
 import torch
 from glob import glob
 import pandas as pd
-from utils import sample_block
+from utils.utils import sample_block
 
 class PointCloudData(Dataset):
     def __init__(self, dataset_path, area_nums, transforms, num_points):
