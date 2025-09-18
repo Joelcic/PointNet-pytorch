@@ -66,7 +66,7 @@ where $\mathcal{L}_{\text{cls}}$ is the negative log-likelihood classification l
 
 ## Result 
 
-The final PointNet model reached a validation accuracy at 73.83% on the S3DIS dataset, which highly demonstrates reasonable performance. For prediction a pointcloud using this model, the best way is to split it in same size blocks as the traing samples and predict each block and combine them. It is possible to predict directly on the wished pointcload but the performance may differ. 
+The final PointNet model reached a validation accuracy at ``73.83%`` on the S3DIS dataset, which highly demonstrates reasonable performance. For prediction a pointcloud using this model, the best way is to split it in same size blocks as the traing samples and predict each block and combine them. It is possible to predict directly on the wished pointcload but the performance may differ. 
 
  ![Sample from S3DIS dataset](images/S3DIS_predicted.png)
 
