@@ -102,11 +102,12 @@ def partition_data(src, output_src, block_size=2, stride=1):
 
 
 if __name__ == "__main__":
+
     """
     A file for divide the S3DIS in parts, for training the PointNet. 
     """
-    src = r'C:...\Stanford3dDataset_Reduced_Version'
-    output_src = r"C:...\S3DIS_partitioned"
+    src = 'S3DIS' # Should hold all the areas in sub folders
+    output_src = 'S3DIS/partitioned'
 
     partition_data(src, output_src, block_size=2, stride=1)
 

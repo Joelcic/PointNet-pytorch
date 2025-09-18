@@ -2,119 +2,8 @@ import numpy as np
 import torch
 import os
 import open3d as o3d
-
-def pointNetLoss(outputs, labels, m3x3, m64x64, alpha=0.0001):
-    """
-   Computes the total loss for PointNet, combining negative log-likelihood loss
-   with a regularization term to encourage orthogonality of the input and feature
-   transformation matrices.
-   :param outputs: (torch.Tensor) The output predictions from the network of shape (B, N, C), where B is batch size, N is number of points, and C is number of classes.
-   :param labels: (torch.Tensor) Ground truth class labels of shape (B, N).
-   :param m3x3: (torch.Tensor) Input transformation matrix of shape (B, 3, 3) from T-Net.
-   :param m64x64: (torch.Tensor) Feature transformation matrix of shape (B, 64, 64) from T-Net.
-   :param alpha: (float, optional) Regularization strength for transformation matrices (default is 0.0001).
-   :return:
-       loss: (torch.Tensor) Combined loss value (classification + regularization).
-    """
-    criterion = torch.nn.NLLLoss()
-    bs = outputs.size(0)
-    id3x3 = torch.eye(3, requires_grad=True).repeat(bs, 1, 1)
-    id64x64 = torch.eye(64, requires_grad=True).repeat(bs, 1, 1)
-
-    # Check if outputs are on CUDA
-    if outputs.is_cuda:
-        id3x3 = id3x3.cuda()
-        id64x64 = id64x64.cuda()
-
-    # Calculate matrix differences
-    diff3x3 = id3x3 - torch.bmm(m3x3, m3x3.transpose(1, 2))
-    diff64x64 = id64x64 - torch.bmm(m64x64, m64x64.transpose(1, 2))
-
-    # Compute the loss
-    return criterion(outputs, labels) + alpha * (torch.norm(diff3x3) + torch.norm(diff64x64)) / float(bs)
-
-
-def train(pointnet, optimizer, train_loader, device, val_loader=None, epochs=15, save=True, lr_scheduler=None):
-    """
-    Trains a PointNet model on a given dataset with optional validation and model saving.
-    :param pointnet (torch.nn.Module): The PointNet model to be trained.
-    :param optimizer (torch.optim.Optimizer): Optimizer used for training (e.g., Adam, SGD).
-    :param train_loader (torch.utils.data.DataLoader):  DataLoader providing training data batches.
-    :param device (torch.device): Device to run the model on (e.g., "cuda" or "cpu").
-    :param val_loader (torch.utils.data.DataLoader):  DataLoader for validation data. If provided, validation accuracy will be computed at each epoch. (OPTIONAL)
-    :param epochs (int): Number of training epochs (default is 15). (OPTIONAL)
-    :param save (bool):  Whether to save the model if validation accuracy improves (default is True). (OPTIONAL)
-    :param lr_scheduler (torch.optim.lr_scheduler._LRScheduler): Learning rate scheduler to be stepped after each epoch, if provided. (OPTIONAL)
-    :return:
-        train_loss_list (list of float): Average training loss per epoch.
-        train_acc_list (list of float): Training accuracy (%) per epoch.
-        val_acc_list (list of float): Validation accuracy (%) per epoch.
-    """
-    best_val_acc = -1.0
-    train_loss_list = []
-    train_acc_list = []
-    val_acc_list = []
-    for epoch in range(epochs):
-        pointnet.train()
-        running_loss = 0.0
-        total_train = 0
-        correct_train = 0
-        batches = 0
-        # Training phase
-        for i, data in enumerate(train_loader, 0):
-            inputs, labels = data
-            inputs = inputs.to(device).float()
-            labels = labels.to(device).long()
-            optimizer.zero_grad()
-
-            outputs, m3x3, m64x64 = pointnet(inputs.transpose(1, 2))
-            loss = pointNetLoss(outputs, labels, m3x3, m64x64)
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item()
-            batches += 1
-            # Calculate training accuracy
-            _, predicted = torch.max(outputs.data, 1)
-            total_train += labels.size(0) * labels.size(1)
-            correct_train += (predicted == labels).sum().item()
-            if i % 10 == 9:
-                print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / 10))
-                running_loss = 0.0
-        avg_epoch_loss = running_loss / batches
-        train_acc = 100.0 * correct_train / total_train
-        train_loss_list.append(avg_epoch_loss)
-        train_acc_list.append(train_acc)
-
-        # Validation phase
-        pointnet.eval()
-        correct = total = 0
-        with torch.no_grad():
-            for data in val_loader:
-                inputs, labels = data
-                inputs = inputs.to(device).float()
-                labels = labels.to(device).long()
-                outputs, __, __ = pointnet(inputs.transpose(1, 2))
-                _, predicted = torch.max(outputs.data, 1)
-
-                total += labels.size(0) * labels.size(1)
-                correct += (predicted == labels).sum().item()
-        val_acc = 100.0 * correct / total
-        val_acc_list.append(val_acc)
-        print("Epoch: ", epoch)
-        print("correct", correct, "/", total)
-        print('Valid accuracy: %d %%' % val_acc)
-
-        # Save the model if current validation accuracy surpasses the best
-        if save and val_acc > best_val_acc:
-            best_val_acc = val_acc
-            path = os.path.join(os.path.dirname(__file__), "pointnetmodel.pth")
-            print("best_val_acc:", val_acc, "saving model at", path)
-            torch.save(pointnet.state_dict(), path)
-        if lr_scheduler is not None:
-            lr_scheduler.step()
-
-    return train_loss_list, train_acc_list, val_acc_list
+import imageio
+import pandas as pd
 
 def sample_block(block_points, block_labels=None, num_points=4096):
     """
@@ -329,3 +218,92 @@ def visualization(pcd, add_grid=False):
     # Run the visualizer
     vis.run()
     vis.destroy_window()
+
+def create_gif_from_3D(file_path, gif_output_path="pointcloud_rotation.gif",
+                       start_angle=0, end_angle=360,
+                       frame_step=4, point_size=0.5,
+                       ping_pong=True):
+    """
+    Creates a rotating GIF of a 3D point cloud from a .pcd file using Open3D.
+    Rotation goes from start_angle to end_angle, and optionally back (ping-pong).
+
+    Parameters:
+    - file_path: str or o3d.geometry.PointCloud, path to the .pcd file or a point cloud object
+    - gif_output_path: str, output path for the GIF
+    - start_angle: int, starting angle of rotation (degrees)
+    - end_angle: int, ending angle of rotation (degrees)
+    - frame_step: int, step in degrees between frames
+    - point_size: float, Open3D point size for visualization
+    - ping_pong: bool, if True, rotate back from end_angle to start_angle (ping-pong effect)
+    """
+
+    if isinstance(file_path, str):
+        pcd = o3d.io.read_point_cloud(file_path)
+        if not pcd.has_points():
+            raise ValueError("Point cloud has no points. Check file format or content.")
+    elif isinstance(file_path, o3d.geometry.PointCloud):
+        pcd = file_path
+    else:
+        raise ValueError("Input variable 'file_path' must be a string path or an Open3D PointCloud.")
+
+    """# Apply optional orientation adjustment
+    R_z = pcd.get_rotation_matrix_from_axis_angle([0, 0, np.pi / 2])
+    R_y = pcd.get_rotation_matrix_from_axis_angle([0, np.pi, 0])
+    R_x = pcd.get_rotation_matrix_from_axis_angle([np.deg2rad(10), 0, 0])
+    pcd.rotate(R_z, center=(0, 0, 0))
+    pcd.rotate(R_y, center=(0, 0, 0))
+    pcd.rotate(R_x, center=(0, 0, 0))"""
+
+    R_x = pcd.get_rotation_matrix_from_axis_angle([-np.pi / 2, 0, 0])
+    #R_x2 = pcd.get_rotation_matrix_from_axis_angle([np.deg2rad(10), 0, 0])
+    pcd.rotate(R_x, center=(0, 0, 0))
+    #pcd.rotate(R_x2, center=(0, 0, 0))
+
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(visible=False)
+    vis.add_geometry(pcd)
+    opt = vis.get_render_option()
+    opt.point_size = point_size
+
+    ctr = vis.get_view_control()
+    # Rotate view to start_angle
+    ctr.rotate(start_angle * 6, 0.0)
+
+    images = []
+
+    # Create forward angles list
+    forward_angles = list(range(start_angle, end_angle + 1, frame_step))
+    if ping_pong:
+        # Create backward angles list (excluding the last frame to avoid duplication)
+        backward_angles = list(range(end_angle - frame_step, start_angle - 1, -frame_step))
+        angles = forward_angles + backward_angles
+    else:
+        angles = forward_angles
+
+    for i in range(len(angles) - 1):
+        angle_diff = angles[i + 1] - angles[i]
+        ctr.rotate(angle_diff * 6, 0.0)  # rotate horizontally by difference * 6 pixels per degree
+        vis.poll_events()
+        vis.update_renderer()
+        img = vis.capture_screen_float_buffer(False)
+        img = (np.asarray(img)[:, :, :3] * 255).astype(np.uint8)
+        images.append(img)
+
+    vis.destroy_window()
+
+    imageio.mimsave(gif_output_path, images, duration=120, loop=0)
+    print(f"GIF saved to {gif_output_path}")
+
+def read_hdf5(file_path):
+    """
+    Function for loading a hdf5 file containing a pcd
+    """
+    data = pd.read_hdf(file_path).to_numpy()
+    # Split into coordinates and labels
+    points = data[:, :3]
+    labels = data[:,3].astype(int)
+    # Create Open3D point cloud
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+
+    return pcd, labels

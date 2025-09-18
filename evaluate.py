@@ -26,7 +26,7 @@ if __name__ == "__main__":
     A file for testing the trained PointNet on the S3DIS dataset pre partitioned according to "partition_data.py"
     """
 
-    dataset_path = r'...\S3DIS_partitioned'
+    dataset_path = "..."
 
     """ To validate the PointNet on test set"""
     model_path = "..."
