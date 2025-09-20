@@ -61,6 +61,7 @@ $$
 \left\| \mathbf{I}_{64} - \mathbf{T}_{64 \times 64}^{(i)} \cdot \left( \mathbf{T}_{64 \times 64}^{(i)} \right)^\top \right\|_F 
 \right)
 $$
+
 where $\mathcal{L}_{\text{cls}}$ is the negative log-likelihood classification loss, $\mathbf{T}_{3 \times 3}^{(i)}$ and $\mathbf{T}_{64 \times 64}^{(i)}$ are the transformation matrices predicted for the $i$-th sample in the batch. $\mathbf{I}_3$ and $\mathbf{I}_{64}$ are the identity matrices of size $3 \times 3$ and $64 \times 64$, respectively. $\| \cdot \|_F$ denotes the Frobenius norm. $B$ is the batch size, and $\alpha$ is a regularization weight.
 
 
@@ -69,6 +70,22 @@ where $\mathcal{L}_{\text{cls}}$ is the negative log-likelihood classification l
 The final PointNet model reached a validation accuracy at ``73.83%`` on the S3DIS dataset, which highly demonstrates reasonable performance. For prediction a pointcloud using this model, the best way is to split it in same size blocks as the traing samples and predict each block and combine them. It is possible to predict directly on the wished pointcload but the performance may differ. 
 
  ![Sample from S3DIS dataset](images/S3DIS_predicted.png)
+
+
+
+## Implementation
+
+The model architecture which has been used are illustrated in the section Theory
+
+`Class PointNet`: holds the clasification model and outputs the Trandformation matrixes, Global and local features whixh are the inputs to the segmentation Network, Does not hold the last MLP for classificatoin. 
+
+`Class PointNetSeg`: Holds the full PointNet model for segmentation, i.e Classification Network and the Segmenation Network. 
+
+Sub models has been implemented: 
+
+`Class MLP_CONV` Hold the architecture for the MLP parts in the PointNet model. 
+
+`Class TNet` Hold the architecture for the Tnets parts in the PointNet model. 
 
 
 
