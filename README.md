@@ -102,4 +102,4 @@ Sub models has been implemented:
 
 - `Class TNet` Hold the architecture for the TNets parts in the PointNet model. 
 
-- `Class FC_BN` Hold the architecture for fullyconneced layers folowed by batch normalization. 
+- `Class FC_BN` Hold the architecture for fullyconneced layers followed by batch normalization. 
