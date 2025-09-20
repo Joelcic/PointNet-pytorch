@@ -101,3 +101,5 @@ Sub models has been implemented:
 - `Class MLP_CONV` Hold the architecture for the MLP parts in the PointNet model. 
 
 - `Class TNet` Hold the architecture for the TNets parts in the PointNet model. 
+
+- `Class FC_BN` Hold the architecture for fullyconneced layers folowed by batch normalization. 
